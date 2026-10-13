@@ -2,8 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  experimental: {
-    // Enable any needed features
+  output: process.env.STATIC_EXPORT === "true" ? "export" : undefined,
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
+  images: {
+    unoptimized: true,
   },
 };
 
