@@ -1,0 +1,211 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String    @id @default(cuid())
+  username       String    @unique @default("admin")
+  passwordHash   String?   // Optional master password or PIN
+  targetRole     String    @default("AI Engineer")
+  geminiApiKey   String?   // Optional server-side or user provided Gemini key
+  aiProvider     String    @default("HEURISTIC") // "HEURISTIC", "GEMINI", "OLLAMA"
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  githubAccounts GitHubAccount[]
+  linkedinProfile LinkedInProfile?
+  facts          ProfessionalFact[]
+  analyses       RoleAnalysis[]
+  resumeEntries  ResumeEntry[]
+  contentPosts   ContentPost[]
+  syncLogs       SyncLog[]
+}
+
+model GitHubAccount {
+  id           String       @id @default(cuid())
+  userId       String
+  username     String       @unique
+  accessToken  String?      // Optional PAT for private repos
+  avatarUrl    String?
+  profileUrl   String?
+  bio          String?
+  publicRepos  Int          @default(0)
+  totalStars   Int          @default(0)
+  lastSyncedAt DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repositories Repository[]
+}
+
+model Repository {
+  id                   String        @id @default(cuid())
+  githubAccountId      String
+  githubRepoId         Int           @unique
+  name                 String
+  fullName             String
+  description          String?
+  htmlUrl              String
+  defaultBranch        String        @default("main")
+  isPrivate            Boolean       @default(false)
+  isFork               Boolean       @default(false)
+  stars                Int           @default(0)
+  forks                Int           @default(0)
+  openIssues           Int           @default(0)
+  primaryLanguage      String?
+  topics               String        @default("[]") // JSON string of topics
+  license              String?
+  pushedAt             DateTime?
+
+  // Deep Inspection & Intelligence Data
+  hasReadme            Boolean       @default(false)
+  readmeContent        String?
+  languagesBreakdown   String        @default("{}") // JSON string { "Python": 80, "TypeScript": 20 }
+  dependencies         String        @default("[]") // JSON string array of detected libraries
+  folderTree           String        @default("[]") // JSON string of top-level directory structure
+  structureScore       Int           @default(0)    // 0-100 score based on best practices
+  completionStatus     String        @default("IN_PROGRESS") // "COMPLETED", "IN_PROGRESS", "PROTOTYPE", "ARCHIVED"
+  reusableComponents   String        @default("[]") // JSON string
+  demonstratedSkills   String        @default("[]") // JSON string
+  missingDocumentation String        @default("[]") // JSON string array of suggestions
+  lastInspectedAt      DateTime?
+
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  githubAccount        GitHubAccount @relation(fields: [githubAccountId], references: [id], onDelete: Cascade)
+  recommendations      Recommendation[]
+  resumeEntries        ResumeEntry[]
+  contentPosts         ContentPost[]
+  relatedFacts         ProfessionalFact[]
+}
+
+model LinkedInProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  fullName    String?
+  headline    String?
+  summary     String?
+  vanityUrl   String?
+  totalPosts  Int      @default(0)
+  totalSkills Int      @default(0)
+  lastUpdated DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProfessionalFact {
+  id                 String      @id @default(cuid())
+  userId             String
+  category           String      // "POSITION", "CERTIFICATION", "PROJECT", "SKILL", "EDUCATION", "ACHIEVEMENT", "LEARNING"
+  title              String
+  organization       String?
+  startDate          String?
+  endDate            String?
+  description        String?
+  skills             String      @default("[]") // JSON array of skills
+  verificationStatus String      @default("VERIFIED") // "VERIFIED", "SELF_REPORTED", "UNVERIFIED"
+  source             String      @default("MANUAL_INPUT") // "LINKEDIN_CSV", "MANUAL_INPUT", "POST_EXTRACT"
+  relatedRepoId      String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relatedRepo        Repository? @relation(fields: [relatedRepoId], references: [id], onDelete: SetNull)
+}
+
+model RoleAnalysis {
+  id          String           @id @default(cuid())
+  userId      String
+  targetRole  String
+  matchScore  Int              @default(0) // 0-100
+  summary     String
+  strengths   String           @default("[]") // JSON array
+  gaps        String           @default("[]") // JSON array
+  roadmap     String           @default("[]") // JSON array of prioritized steps
+  createdAt   DateTime         @default(now())
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recommendations Recommendation[]
+}
+
+model Recommendation {
+  id             String       @id @default(cuid())
+  roleAnalysisId String
+  repoId         String?
+  type           String       // "BEST_SHOWCASE", "NEEDS_IMPROVEMENT", "MISSING_PORTFOLIO"
+  title          String
+  reason         String
+  priority       String       @default("HIGH") // "HIGH", "MEDIUM", "LOW"
+  actionPlan     String
+  skillsGained   String       @default("[]") // JSON array
+  createdAt      DateTime     @default(now())
+
+  roleAnalysis   RoleAnalysis @relation(fields: [roleAnalysisId], references: [id], onDelete: Cascade)
+  repository     Repository?  @relation(fields: [repoId], references: [id], onDelete: SetNull)
+}
+
+model ResumeEntry {
+  id                 String      @id @default(cuid())
+  userId             String
+  repoId             String?
+  targetRole         String
+  projectTitle       String
+  objective          String
+  technologies       String      @default("[]") // JSON array
+  contributions      String
+  keyFeatures        String      @default("[]") // JSON array
+  verifiableOutcomes String?
+  keywords           String      @default("[]") // JSON array
+  
+  // Strict ATS length controls
+  oneLineVersion     String
+  twoLineVersion     String
+  threeBulletVersion String      // JSON array of 3 strings
+  detailedVersion    String?
+
+  isFavorite         Boolean     @default(false)
+  notes              String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository         Repository? @relation(fields: [repoId], references: [id], onDelete: SetNull)
+}
+
+model ContentPost {
+  id              String      @id @default(cuid())
+  userId          String
+  repoId          String?
+  formatType      String      // "ANNOUNCEMENT", "INTERNSHIP_UPDATE", "TECH_LEARNING", "REPO_SHOWCASE", "ACHIEVEMENT", "HEADLINE", "LINKEDIN_PROJECT", "FEATURED_CARD", "ABOUT_DRAFT", "WEEKLY_PLAN"
+  title           String
+  targetAudience  String?
+  conciseVersion  String
+  mediumVersion   String
+  detailedVersion String
+  tags            String      @default("[]") // JSON array
+  isFavorite      Boolean     @default(false)
+  postedAt        DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository      Repository? @relation(fields: [repoId], references: [id], onDelete: SetNull)
+}
+
+model SyncLog {
+  id        String   @id @default(cuid())
+  userId    String
+  source    String   // "GITHUB", "LINKEDIN", "AI_ANALYSIS"
+  status    String   // "SUCCESS", "ERROR", "RATE_LIMITED"
+  details   String
+  timestamp DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
