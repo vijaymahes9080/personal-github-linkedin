@@ -49,20 +49,39 @@ export class GitHubService {
     const headers = this.getHeaders(token);
 
     // 1. Fetch user profile
-    const userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, { headers });
-    if (!userRes.ok) {
-      if (userRes.status === 403 || userRes.status === 429) {
-        const resetHeader = userRes.headers.get("x-ratelimit-reset");
-        const resetDate = resetHeader ? new Date(parseInt(resetHeader) * 1000).toLocaleTimeString() : "soon";
-        throw new Error(`GitHub API rate limit exceeded. Resets at ${resetDate}. Please provide a free GitHub Personal Access Token (PAT) when connecting your account or set GITHUB_TOKEN in .env.local.`);
+    let userData: any;
+    let isTokenOwner = false;
+
+    if (token) {
+      try {
+        const authUserRes = await fetch("https://api.github.com/user", { headers });
+        if (authUserRes.ok) {
+          const authUser = await authUserRes.json();
+          if (authUser.login?.toLowerCase() === username.toLowerCase()) {
+            userData = authUser;
+            isTokenOwner = true;
+          }
+        }
+      } catch {
+        // Fall back to public user profile
       }
-      if (userRes.status === 404) {
-        throw new Error(`GitHub user "${username}" not found.`);
-      }
-      throw new Error(`Failed to fetch GitHub profile for "${username}": HTTP ${userRes.status}`);
     }
 
-    const userData = await userRes.json();
+    if (!userData) {
+      const userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, { headers });
+      if (!userRes.ok) {
+        if (userRes.status === 403 || userRes.status === 429) {
+          const resetHeader = userRes.headers.get("x-ratelimit-reset");
+          const resetDate = resetHeader ? new Date(parseInt(resetHeader) * 1000).toLocaleTimeString() : "soon";
+          throw new Error(`GitHub API rate limit exceeded. Resets at ${resetDate}. Please provide a free GitHub Personal Access Token (PAT) when connecting your account or set GITHUB_TOKEN in .env.local.`);
+        }
+        if (userRes.status === 404) {
+          throw new Error(`GitHub user "${username}" not found.`);
+        }
+        throw new Error(`Failed to fetch GitHub profile for "${username}": HTTP ${userRes.status}`);
+      }
+      userData = await userRes.json();
+    }
 
     // Ensure user in local DB
     let user = await prisma.user.findFirst();
@@ -75,6 +94,10 @@ export class GitHubService {
       });
     }
 
+    const totalRepoCount =
+      (userData.public_repos || 0) +
+      (userData.total_private_repos || userData.owned_private_repos || 0);
+
     // Upsert GitHubAccount in DB
     const ghAccount = await prisma.gitHubAccount.upsert({
       where: { username },
@@ -83,7 +106,7 @@ export class GitHubService {
         avatarUrl: userData.avatar_url,
         profileUrl: userData.html_url,
         bio: userData.bio,
-        publicRepos: userData.public_repos || 0,
+        publicRepos: totalRepoCount,
         lastSyncedAt: new Date(),
       },
       create: {
@@ -93,15 +116,18 @@ export class GitHubService {
         avatarUrl: userData.avatar_url,
         profileUrl: userData.html_url,
         bio: userData.bio,
-        publicRepos: userData.public_repos || 0,
+        publicRepos: totalRepoCount,
         lastSyncedAt: new Date(),
       },
     });
 
-    // 2. Fetch Repositories (up to 100 per page)
-    const reposUrl = token
-      ? `https://api.github.com/user/repos?per_page=100&sort=updated`
-      : `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated`;
+    // 2. Fetch Repositories strictly for the given username
+    // If authenticated as this user, fetch all repos (public + private) owned by them.
+    // Otherwise, fetch public repositories owned by this user.
+    const reposUrl =
+      token && isTokenOwner
+        ? `https://api.github.com/user/repos?affiliation=owner&per_page=100&sort=updated`
+        : `https://api.github.com/users/${encodeURIComponent(username)}/repos?type=owner&per_page=100&sort=updated`;
 
     const reposRes = await fetch(reposUrl, { headers });
     if (!reposRes.ok) {
@@ -113,10 +139,15 @@ export class GitHubService {
       throw new Error("Invalid response format from GitHub API");
     }
 
+    // STRICT FILTER: Only include repositories strictly owned by the given username
+    const userOwnedRepos = rawRepos.filter(
+      (r: any) => r.owner?.login?.toLowerCase() === username.toLowerCase()
+    );
+
     const processedRepos = [];
 
-    // Process each repo (top 15 most recently updated to respect rate limits on free requests)
-    const reposToInspect = rawRepos.slice(0, 15);
+    // Process top 15 most recently updated repositories for the given username
+    const reposToInspect = userOwnedRepos.slice(0, 15);
 
     for (const r of reposToInspect) {
       try {
