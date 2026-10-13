@@ -1,38 +1,72 @@
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
 .pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# Next.js Build Outputs & Cache
 /.next/
 /out/
-
-# production
 /build
+/.turbo
 
-# misc
-.DS_Store
+# Testing & Coverage
+/coverage
+*.lcov
+
+# Environment Variables & Secrets
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
 *.pem
 
-# debug
+# Local SQLite & Prisma Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+*.sqlite3
+prisma/dev.db
+prisma/dev.db-journal
+
+# Logs & Debugging
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
-.env*.local
-.env
-
-# vercel
+# Vercel & Deployment Artifacts
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-# sqlite
-*.db
-*.db-journal
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary Scratch Files
+scratch/
+tmp/
+temp/
