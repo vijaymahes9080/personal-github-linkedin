@@ -9,6 +9,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN mkdir -p /app/public
 ENV NODE_ENV=production
 RUN npx prisma generate
 RUN npm run build
@@ -18,8 +19,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Create persistent storage folder for SQLite
-RUN mkdir -p /app/prisma
+# Create persistent storage folder for SQLite and public assets
+RUN mkdir -p /app/prisma /app/public
 VOLUME ["/app/prisma"]
 
 COPY --from=builder /app/public ./public
@@ -30,4 +31,4 @@ COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push && npm run start"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm run start"]

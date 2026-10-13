@@ -1,0 +1,3 @@
+# Robots.txt for Personal GitHub Intelligence & AI Career Assistant
+User-agent: *
+Allow: /
