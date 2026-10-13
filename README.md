@@ -1,5 +1,13 @@
 # Personal GitHub Intelligence & AI Career Assistant
 
+[![Live Application](https://img.shields.io/badge/Live%20App-personal--github--linkedin.onrender.com-10b981?style=for-the-badge&logo=render&logoColor=white)](https://personal-github-linkedin.onrender.com)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org)
+[![Prisma](https://img.shields.io/badge/Prisma-SQLite-2D3748?style=for-the-badge&logo=prisma)](https://prisma.io)
+
+🌐 **Live Application URL**: [https://personal-github-linkedin.onrender.com](https://personal-github-linkedin.onrender.com)  
+🏥 **Production Health Status**: [https://personal-github-linkedin.onrender.com/api/health](https://personal-github-linkedin.onrender.com/api/health)
+
 A professional, AI-powered, production-ready web application that continuously organizes your personal GitHub repositories, analyzes your LinkedIn professional history, and recommends the best projects, resume bullets, and career content based on any target job role.
 
 ---
