@@ -19,8 +19,9 @@ export class GitHubService {
       Accept: "application/vnd.github.v3+json",
       "User-Agent": "Personal-GitHub-Career-Intelligence/1.0",
     };
-    if (token && token.trim()) {
-      headers["Authorization"] = `Bearer ${token.trim()}`;
+    const activeToken = token?.trim() || process.env.GITHUB_TOKEN?.trim() || process.env.GITHUB_PAT?.trim();
+    if (activeToken) {
+      headers["Authorization"] = `Bearer ${activeToken}`;
     }
     return headers;
   }
@@ -29,7 +30,22 @@ export class GitHubService {
    * Fetches public/authenticated repositories for a given username or token.
    */
   static async syncAccountRepositories(options: GitHubSyncOptions) {
-    const { username, token } = options;
+    let { username, token } = options;
+
+    // Check if account already exists in DB with a saved token, or fall back to env var
+    if (!token) {
+      try {
+        const existingAcc = await prisma.gitHubAccount.findUnique({ where: { username } });
+        if (existingAcc?.accessToken) {
+          token = existingAcc.accessToken;
+        } else if (process.env.GITHUB_TOKEN || process.env.GITHUB_PAT) {
+          token = (process.env.GITHUB_TOKEN || process.env.GITHUB_PAT)?.trim();
+        }
+      } catch {
+        // DB not ready or account not found
+      }
+    }
+
     const headers = this.getHeaders(token);
 
     // 1. Fetch user profile
@@ -38,7 +54,7 @@ export class GitHubService {
       if (userRes.status === 403 || userRes.status === 429) {
         const resetHeader = userRes.headers.get("x-ratelimit-reset");
         const resetDate = resetHeader ? new Date(parseInt(resetHeader) * 1000).toLocaleTimeString() : "soon";
-        throw new Error(`GitHub API rate limit exceeded. Resets at ${resetDate}. Consider adding a GitHub Personal Access Token in Settings.`);
+        throw new Error(`GitHub API rate limit exceeded. Resets at ${resetDate}. Please provide a free GitHub Personal Access Token (PAT) when connecting your account or set GITHUB_TOKEN in .env.local.`);
       }
       if (userRes.status === 404) {
         throw new Error(`GitHub user "${username}" not found.`);

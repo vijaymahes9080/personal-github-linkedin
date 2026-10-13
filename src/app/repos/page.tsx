@@ -140,13 +140,24 @@ export default function RepositoriesPage() {
           {accounts.map((acc) => (
             <div
               key={acc.id}
-              className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-200"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-200"
             >
               {acc.avatarUrl && (
                 <img src={acc.avatarUrl} alt={acc.username} className="w-4 h-4 rounded-full" />
               )}
               <span>@{acc.username}</span>
               <span className="text-[10px] text-slate-500">({acc.repositories?.length || 0} repos)</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsernameInput(acc.username);
+                  setConnectModalOpen(true);
+                }}
+                className="ml-1 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-sans font-semibold transition-colors"
+                title="Sync again or update GitHub Token"
+              >
+                Re-sync / Token
+              </button>
             </div>
           ))}
         </div>
@@ -349,9 +360,19 @@ export default function RepositoriesPage() {
                   placeholder="ghp_xxxxxxxxxxxx"
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Stored securely on your server. Tokens are never exposed in frontend code.
-                </p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-[10px] text-slate-500">
+                    Fixes rate limit errors. Free limit is 5,000 req/hr.
+                  </p>
+                  <a
+                    href="https://github.com/settings/tokens/new?description=PersonalCareerAssistant&scopes=repo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-emerald-400 hover:text-emerald-300 underline font-medium"
+                  >
+                    Generate Free Token ↗
+                  </a>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
